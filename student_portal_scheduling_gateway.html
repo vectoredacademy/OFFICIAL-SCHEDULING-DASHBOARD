@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VectorEd Academy | Student Session Scheduling &amp; Rescheduling Portal</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Montserrat:wght@700;800;900&amp;family=Roboto+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+
+  <!-- FontAwesome 6 CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- MathJax CDN for LaTeX Scientific Formatting -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true
+      },
+      options: {
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" crossorigin="anonymous"></script>
+
+  <!-- Tailwind CSS CDN & Config -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navyDark: '#0B192C',
+              navy: '#1C2D4A',
+              navyCard: '#152238',
+              gold: '#F5A623',
+              goldHover: '#E09216',
+              accentRed: '#FF6500',
+              cream: '#FFFDF6',
+              borderDark: '#253A5E'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            heading: ['Montserrat', 'sans-serif'],
+            mono: ['Roboto Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0B192C;
+      color: #F8F9FA;
+      overflow-x: hidden;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      text-rendering: optimizeSpeed;
+    }
+    .gold-glow {
+      box-shadow: 0 0 25px rgba(245, 166, 35, 0.25);
+    }
+    .stem-grid-bg {
+      background-image: radial-gradient(rgba(245, 166, 35, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .glass-panel {
+      background: rgba(28, 45, 74, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(245, 166, 35, 0.25);
+    }
+    .toast-msg {
+      transform: translateY(100%);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    }
+    .toast-msg.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .slot-btn {
+      transition: all 0.15s ease-in-out;
+    }
+    .slot-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* Admin Mode Editable Highlight */
+    body.admin-mode-active [contenteditable="true"] {
+      outline: 2px dashed #F5A623 !important;
+      outline-offset: 4px;
+      cursor: text;
+      background-color: rgba(245, 166, 35, 0.12);
+      border-radius: 6px;
+      padding: 2px 4px;
+    }
+    body.admin-mode-active [contenteditable="true"]:focus {
+      outline: 2px solid #38BDF8 !important;
+      background-color: rgba(56, 189, 248, 0.18);
+    }
+    .edit-admin-only {
+      display: none !important;
+    }
+    body.admin-mode-active .edit-admin-only {
+      display: inline-flex !important;
+    }
+    /* Custom Scrollbar for Time Columns */
+    .slot-column-scroll::-webkit-scrollbar { width: 4px; }
+    .slot-column-scroll::-webkit-scrollbar-track { background: #0B192C; }
+    .slot-column-scroll::-webkit-scrollbar-thumb { background: #253A5E; border-radius: 2px; }
+    .slot-column-scroll::-webkit-scrollbar-thumb:hover { background: #F5A623; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased stem-grid-bg">
+
+  <!-- ADMIN TOOLBAR BAR (Hidden by default) -->
+  <div id="adminToolbar" class="sticky top-0 z-50 bg-gradient-to-r from-amber-600 via-brand-gold to-amber-600 text-brand-navyDark px-3 py-2 shadow-2xl flex flex-wrap items-center justify-between gap-2 text-xs font-extrabold border-b border-amber-300 hidden">
+    <div class="flex items-center gap-2 sm:gap-3">
+      <span class="bg-brand-navyDark text-brand-gold px-2.5 py-1 rounded-lg font-mono text-[11px] animate-pulse shrink-0">
+        <i class="fa-solid fa-lock-open"></i> ADMIN CMS ACTIVE
+      </span>
+      <span class="hidden md:inline">Click any text to edit directly or manage Courses &amp; Timezones below.</span>
+    </div>
+
+    <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+      <button onclick="openManageCoursesModal()" class="bg-brand-navyDark text-brand-gold hover:bg-slate-900 border border-brand-gold/50 px-2.5 py-1 rounded-lg transition flex items-center gap-1.5">
+        <i class="fa-solid fa-list-check"></i> Manage Courses &amp; Topics
+      </button>
+
+      <button onclick="openAdminTzModal()" class="bg-indigo-950 hover:bg-indigo-900 text-brand-gold border border-indigo-700/80 px-2.5 py-1 rounded-lg transition flex items-center gap-1.5">
+        <i class="fa-solid fa-globe"></i> Manage Timezones
+      </button>
+
+      <button onclick="openPasswordModal()" class="bg-amber-900 hover:bg-slate-900 text-white px-2.5 py-1 rounded-lg transition">
+        <i class="fa-solid fa-key"></i> Password
+      </button>
+
+      <button onclick="saveAllPortalChanges()" class="bg-emerald-800 hover:bg-emerald-900 text-white px-3 py-1 rounded-lg shadow-md transition flex items-center gap-1">
+        <i class="fa-solid fa-floppy-disk"></i> Save Changes
+      </button>
+
+      <button onclick="logoutAdmin()" class="bg-red-700 hover:bg-red-800 text-white px-2.5 py-1 rounded-lg transition" title="Logout">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- NAVIGATION BAR -->
+  <nav class="bg-brand-navy/95 backdrop-blur-md border-b border-brand-borderDark sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      
+      <a href="#" class="flex items-center gap-3 group">
+        <img src="https://iili.io/ndL8PQj.png" alt="VectorEd Emblem" class="h-10 sm:h-11 w-auto object-contain group-hover:scale-105 transition duration-300">
+        <div>
+          <span class="font-heading font-black text-base sm:text-xl text-white tracking-tight block leading-none">
+            VECTOR<span class="text-brand-gold">ED</span> ACADEMY
+          </span>
+          <span class="text-[9px] sm:text-[10px] text-slate-400 tracking-widest uppercase font-semibold">Student Portal &amp; Scheduling Gateway</span>
+        </div>
+      </a>
+
+      <div class="flex items-center gap-3">
+        <button id="btnAdminLogin" onclick="openAdminAuthModal()" class="bg-brand-navyDark hover:bg-slate-800 text-brand-gold border border-brand-gold/40 hover:border-brand-gold font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5 min-h-[44px]">
+          <i class="fa-solid fa-user-gear"></i>
+          <span class="hidden sm:inline">Admin Access</span>
+        </button>
+
+        <a href="https://vectored-academy-calendar.netlify.app/" target="_blank" rel="noopener noreferrer" class="bg-brand-gold hover:bg-brand-goldHover text-brand-navyDark font-extrabold px-3.5 py-2 rounded-xl text-xs transition flex items-center gap-1.5 min-h-[44px] shadow-lg">
+          <i class="fa-solid fa-calendar-days text-sm"></i>
+          <span class="hidden sm:inline">Master Calendar</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    
+    <!-- HEADER BLOCK -->
+    <div class="text-center space-y-3 mb-8">
+      <div class="inline-flex items-center gap-2 bg-brand-navy border border-brand-gold/40 px-3.5 py-1.5 rounded-full text-xs font-semibold text-brand-gold shadow-md">
+        <span class="animate-pulse">●</span>
+        <span id="txtBadge">Real-Time Student Portal</span>
+      </div>
+      <h1 id="txtTitle" class="text-2xl sm:text-4xl font-heading font-black text-white tracking-tight">
+        Student Session Scheduling &amp; Rescheduling Portal
+      </h1>
+      <p id="txtSubheadline" class="text-slate-300 text-xs sm:text-sm max-w-2xl mx-auto font-normal leading-relaxed">
+        Select your enrolled course, choose your preferred session block, and lock in your class. Multi-slot durations automatically aggregate for contiguous time blocks.
+      </p>
+    </div>
+
+    <!-- DIRECT CALENDAR ACCESS BAR -->
+    <div class="bg-brand-navyCard p-4 sm:p-5 rounded-2xl border border-brand-gold/40 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+      <div class="flex items-center gap-3 text-center sm:text-left">
+        <div class="w-10 h-10 rounded-xl bg-brand-gold/15 text-brand-gold flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-calendar-week text-lg"></i>
+        </div>
+        <div>
+          <span id="txtCalBarTitle" class="text-sm font-bold text-white block">Need to verify overall tutor availability first?</span>
+          <span id="txtCalBarDesc" class="text-xs text-slate-300">Open the VectorEd Master Calendar in real time to check open windows.</span>
+        </div>
+      </div>
+      <a href="https://vectored-academy-calendar.netlify.app/" target="_blank" rel="noopener noreferrer" class="w-full sm:w-auto bg-brand-gold hover:bg-brand-goldHover text-brand-navyDark font-black px-5 py-3 rounded-xl text-xs sm:text-sm transition gold-glow flex items-center justify-center gap-2 shrink-0 min-h-[44px]">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        <span>📅 View Real-Time Master Calendar</span>
+      </a>
+    </div>
+
+    <!-- SCHEDULING FORM CONTAINER -->
+    <div class="bg-brand-navyCard p-5 sm:p-8 rounded-3xl border border-brand-borderDark shadow-2xl space-y-6">
+      
+      <form id="studentSchedulingForm" onsubmit="handleStudentScheduleSubmit(event)" class="space-y-6">
+        
+        <!-- STUDENT INFORMATION SECTION -->
+        <div class="space-y-4 pb-6 border-b border-brand-borderDark">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-user-graduate text-brand-gold"></i>
+              <span id="txtSec1Title">1. Student &amp; Course Details</span>
+            </h3>
+
+            <!-- Admin Course Manage Quick Button -->
+            <button type="button" onclick="openManageCoursesModal()" class="edit-admin-only bg-amber-800 hover:bg-amber-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold items-center gap-1 shadow">
+              <i class="fa-solid fa-pen-to-square"></i> Manage Course Dropdown
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Student Full Name *</label>
+              <input type="text" id="studentName" required placeholder="e.g. Gabriel Gil" class="w-full bg-brand-navy border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition min-h-[44px]">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Course &amp; Topic *</label>
+              <select id="studentCourse" required class="w-full bg-brand-navy border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-3 text-xs sm:text-sm text-white outline-none transition min-h-[44px]">
+                <!-- Dynamically populated from courseTopics list -->
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Reason for Reschedule / Additional Notes <span class="text-slate-400 font-normal">(Optional)</span></label>
+            <textarea id="studentNotes" rows="2" placeholder="Provide short context if rescheduling due to an emergency or special circumstance for fee-waiver review." class="w-full bg-brand-navy border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition"></textarea>
+            <p id="txtNotesHelper" class="text-[11px] text-slate-400 mt-1">
+              <i class="fa-solid fa-circle-info text-brand-gold mr-1"></i>
+              Provide short context if rescheduling due to an emergency or special circumstance for fee-waiver review.
+            </p>
+          </div>
+        </div>
+
+        <!-- TIMEZONE & DATE SELECTION -->
+        <div class="space-y-4 pb-6 border-b border-brand-borderDark">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-calendar-day text-brand-gold"></i>
+              <span id="txtSec2Title">2. Select Class Date &amp; Timezone</span>
+            </h3>
+
+            <!-- TIMEZONE SELECTOR BAR -->
+            <div class="flex items-center gap-2 bg-brand-navy px-3 py-1.5 rounded-xl border border-brand-borderDark">
+              <i class="fa-solid fa-globe text-brand-gold text-xs"></i>
+              <select id="portalTimezone" onchange="handleTimezoneChange(this.value)" class="bg-transparent text-xs text-white outline-none cursor-pointer">
+                <!-- Dynamically populated -->
+              </select>
+              <button type="button" onclick="openAdminTzModal()" class="edit-admin-only text-[10px] text-brand-gold hover:text-white ml-1 font-bold" title="Edit Timezones">
+                <i class="fa-solid fa-gear"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- WEEK NAVIGATION BAR -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span id="txtChooseDateLabel" class="text-xs font-semibold text-slate-300">Choose preferred date (Monday to Saturday):</span>
+            
+            <div class="flex items-center gap-2 bg-brand-navy p-1 rounded-xl border border-brand-borderDark self-start sm:self-auto">
+              <button type="button" onclick="changeWeekOffset(-1)" class="px-2.5 py-1 rounded-lg bg-brand-navyDark hover:bg-slate-800 text-brand-gold text-xs font-bold transition flex items-center gap-1 border border-brand-borderDark min-h-[36px]">
+                <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev Week
+              </button>
+              <span id="weekRangeLabel" class="text-[11px] font-mono font-bold text-slate-200 px-2">--</span>
+              <button type="button" onclick="changeWeekOffset(1)" class="px-2.5 py-1 rounded-lg bg-brand-navyDark hover:bg-slate-800 text-brand-gold text-xs font-bold transition flex items-center gap-1 border border-brand-borderDark min-h-[36px]">
+                Next Week <i class="fa-solid fa-chevron-right text-[10px]"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- DATE PILLS GRID -->
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center" id="portalDatePills">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- TIME SLOT TIMELINE PICKER (EXTENDED TO 11:30 PM MIDNIGHT MAX) -->
+        <div class="space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-clock text-brand-gold"></i>
+              <span id="txtSec3Title">3. Select Time Slot Timeline</span>
+            </h3>
+
+            <!-- LEGEND -->
+            <div class="flex items-center gap-3 text-[11px] text-slate-300">
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-brand-navyDark border border-brand-borderDark inline-block"></span> Open</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-brand-gold inline-block"></span> Selected</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-slate-800 border border-slate-700 inline-block"></span> Booked</span>
+            </div>
+          </div>
+
+          <!-- USER GUIDANCE BANNER -->
+          <div class="p-4 bg-brand-navy/90 rounded-2xl border border-brand-gold/30 flex items-start gap-3 shadow-inner">
+            <i class="fa-solid fa-circle-info text-brand-gold text-base mt-0.5 shrink-0"></i>
+            <p id="txtGuidanceBanner" class="text-xs text-slate-200 leading-relaxed">
+              Select your class date and start time slot below. Sessions operate from 8:00 AM up to 11:30 PM (11:30 PM - 12:00 AM Midnight). For multi-slot classes (e.g., 1.5 hours), click consecutive 30-minute time blocks.
+            </p>
+          </div>
+
+          <!-- TIME SLOT COLUMNS (MORNING / AFTERNOON / EVENING UP TO 11:30 PM) -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="bg-brand-navy p-3 rounded-2xl border border-brand-borderDark space-y-2">
+              <div class="text-center pb-2 border-b border-brand-borderDark">
+                <span class="text-xs font-bold text-brand-gold block"><i class="fa-solid fa-sun mr-1"></i> Morning</span>
+              </div>
+              <div class="space-y-1.5 slot-column-scroll max-h-[520px] overflow-y-auto pr-1" id="slotsMorning"></div>
+            </div>
+
+            <div class="bg-brand-navy p-3 rounded-2xl border border-brand-borderDark space-y-2">
+              <div class="text-center pb-2 border-b border-brand-borderDark">
+                <span class="text-xs font-bold text-brand-gold block"><i class="fa-solid fa-cloud-sun mr-1"></i> Afternoon</span>
+              </div>
+              <div class="space-y-1.5 slot-column-scroll max-h-[520px] overflow-y-auto pr-1" id="slotsAfternoon"></div>
+            </div>
+
+            <div class="bg-brand-navy p-3 rounded-2xl border border-brand-borderDark space-y-2">
+              <div class="text-center pb-2 border-b border-brand-borderDark">
+                <span class="text-xs font-bold text-brand-gold block"><i class="fa-solid fa-moon mr-1"></i> Evening (Till 11:30 PM)</span>
+              </div>
+              <div class="space-y-1.5 slot-column-scroll max-h-[520px] overflow-y-auto pr-1" id="slotsEvening"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REFINED SESSION SELECTION SUMMARY CARD (NAVY & GOLD GLASS COCKPIT) -->
+        <div class="p-5 sm:p-6 rounded-2xl border border-brand-gold/40 bg-gradient-to-br from-[#152238] via-[#1C2D4A] to-[#0B192C] shadow-2xl space-y-4 relative overflow-hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-brand-borderDark/80">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-brand-gold animate-ping"></span>
+              <span class="text-xs font-mono font-bold text-white tracking-widest uppercase">SESSION SELECTION SUMMARY</span>
+            </div>
+            
+            <span id="selectedDurationDisplay" class="text-xs font-mono font-extrabold text-brand-gold bg-brand-gold/15 border border-brand-gold/40 px-3.5 py-1.5 rounded-full text-center shadow-md">
+              Selected Duration: 0 Minutes
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div class="bg-brand-navyDark/60 p-3 rounded-xl border border-brand-borderDark/70">
+              <span class="text-slate-400 text-[11px] block font-medium mb-0.5">Selected Date:</span>
+              <span id="summaryDate" class="text-white font-bold text-sm">None</span>
+            </div>
+            <div class="bg-brand-navyDark/60 p-3 rounded-xl border border-brand-borderDark/70">
+              <span class="text-slate-400 text-[11px] block font-medium mb-0.5">Time Window (Local):</span>
+              <span id="summaryTimeLocal" class="text-brand-gold font-bold text-sm">None Selected</span>
+            </div>
+            <div class="bg-brand-navyDark/60 p-3 rounded-xl border border-brand-borderDark/70">
+              <span class="text-slate-400 text-[11px] block font-medium mb-0.5">Baseline PST Keys:</span>
+              <span id="summaryTimePST" class="text-slate-200 font-bold font-mono text-xs">None Selected</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBMIT BUTTON -->
+        <button type="submit" id="btnSubmitSchedule" class="w-full bg-brand-gold hover:bg-brand-goldHover text-brand-navyDark font-black py-4 rounded-2xl text-xs sm:text-sm transition gold-glow flex items-center justify-center gap-2 shadow-2xl min-h-[50px]">
+          <i class="fa-solid fa-calendar-check text-base"></i>
+          <span>Confirm &amp; Submit Session Schedule</span>
+        </button>
+
+      </form>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-brand-navyDark border-t border-brand-borderDark py-8 text-slate-400 text-xs mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-2">
+      <p>© 2026 VectorEd Academy. All rights reserved. Registered STEM Educational Brand.</p>
+      <p class="text-[11px] text-slate-500">Connected to Master Google Sheets Engine via Apps Script Web App Endpoint.</p>
+    </div>
+  </footer>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toastNotification" class="toast-msg fixed bottom-5 right-5 z-50 bg-brand-navy border border-brand-gold text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm">
+    <i class="fa-solid fa-circle-check text-brand-gold text-lg" id="toastIcon"></i>
+    <span id="toastText">✓ Session schedule saved successfully!</span>
+  </div>
+
+  <!-- ADMIN AUTH MODAL -->
+  <div id="adminAuthModal" class="fixed inset-0 z-50 bg-brand-navyDark/90 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="bg-brand-navy border border-brand-gold/50 max-w-md w-full rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-5">
+      <button onclick="closeAdminAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-brand-gold/20 text-brand-gold flex items-center justify-center font-bold shrink-0">
+          <i class="fa-solid fa-lock"></i>
+        </div>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-white">Admin Portal Authentication</h3>
+          <p class="text-[11px] text-slate-400">Unlock Course &amp; Timezone CMS controls</p>
+        </div>
+      </div>
+
+      <form onsubmit="handleAdminLoginSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Admin Master Password *</label>
+          <input type="password" id="adminPassInput" required placeholder="Default password: 123456" class="w-full bg-brand-navyDark border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none">
+        </div>
+
+        <button type="submit" class="w-full bg-brand-gold hover:bg-brand-goldHover text-brand-navyDark font-black py-3.5 rounded-xl text-xs sm:text-sm transition min-h-[44px]">
+          Unlock Admin Portal CMS
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MANAGE COURSES MODAL (ADMIN) -->
+  <div id="manageCoursesModal" class="fixed inset-0 z-50 bg-brand-navyDark/90 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="bg-brand-navy border border-brand-gold/50 max-w-lg w-full rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-5 max-h-[90vh] overflow-y-auto">
+      <button onclick="closeManageCoursesModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-brand-gold/20 text-brand-gold flex items-center justify-center font-bold">
+          <i class="fa-solid fa-book-open"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">Manage Enrolled Courses &amp; Topics</h3>
+          <p class="text-xs text-slate-400">Add, edit, delete, and rearrange topics in the student dropdown</p>
+        </div>
+      </div>
+
+      <form onsubmit="handleAddCourseTopic(event)" class="space-y-3 bg-brand-navyDark p-3.5 rounded-2xl border border-brand-borderDark text-xs">
+        <span class="text-xs font-bold text-white block uppercase tracking-wider"><i class="fa-solid fa-plus-circle text-brand-gold mr-1"></i> Add New Course / Topic</span>
+        <div class="flex items-center gap-2">
+          <input type="text" id="newCourseTopicInput" required placeholder="e.g. Physics - Fluid Dynamics" class="flex-1 bg-brand-navy border border-brand-borderDark rounded-xl p-2.5 text-white outline-none focus:border-brand-gold min-h-[40px]">
+          <button type="submit" class="bg-brand-gold hover:bg-brand-goldHover text-brand-navyDark font-black px-4 py-2.5 rounded-xl transition shrink-0 min-h-[40px]">
+            <i class="fa-solid fa-plus"></i> Add
+          </button>
+        </div>
+      </form>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-200 block uppercase tracking-wider">Active Offered Courses:</span>
+          <span id="courseCountBadge" class="text-[10px] font-bold text-brand-gold bg-brand-gold/10 border border-brand-gold/30 px-2 py-0.5 rounded-full">0 courses</span>
+        </div>
+        <div id="adminCoursesListContainer" class="max-h-60 overflow-y-auto space-y-2 pr-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN TIMEZONE MANAGER MODAL -->
+  <div id="adminTzModal" class="fixed inset-0 z-50 bg-brand-navyDark/90 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="bg-brand-navy border border-brand-gold/50 max-w-lg w-full rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-5 max-h-[90vh] overflow-y-auto">
+      <button onclick="closeAdminTzModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-brand-gold/20 text-brand-gold flex items-center justify-center font-bold">
+          <i class="fa-solid fa-globe"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">Global Timezone Engine</h3>
+          <p class="text-xs text-slate-400">Add, edit, or remove timezones for student scheduling</p>
+        </div>
+      </div>
+
+      <div class="bg-brand-navyDark p-3.5 rounded-2xl border border-brand-borderDark space-y-2">
+        <span class="text-xs font-bold text-brand-gold block uppercase tracking-wider"><i class="fa-solid fa-bolt mr-1"></i> Quick Select Preset Timezone:</span>
+        <select id="siteTzPresetSelect" onchange="applySiteTzPreset(this.value)" class="w-full bg-brand-navy border border-brand-borderDark rounded-xl p-2 text-xs text-white outline-none focus:border-brand-gold cursor-pointer">
+          <option value="">-- Select an International Preset --</option>
+          <option value="Asia/Tokyo|9|JST (UTC+9) - Tokyo / Seoul">JST (UTC+9) - Tokyo / Seoul</option>
+          <option value="Australia/Sydney|11|AEDT (UTC+11) - Sydney / Melbourne">AEDT (UTC+11) - Sydney / Melbourne</option>
+          <option value="Australia/Brisbane|10|AEST (UTC+10) - Brisbane">AEST (UTC+10) - Brisbane</option>
+          <option value="Asia/Singapore|8|SGT/PST (UTC+8) - Manila / Singapore">SGT/PST (UTC+8) - Manila / Singapore</option>
+          <option value="Asia/Bangkok|7|ICT (UTC+7) - Bangkok / Jakarta">ICT (UTC+7) - Bangkok / Jakarta</option>
+          <option value="Asia/Kolkata|5.5|IST (UTC+5.5) - New Delhi / India">IST (UTC+5.5) - New Delhi / India</option>
+          <option value="Asia/Dubai|4|GST (UTC+4) - Dubai / UAE">GST (UTC+4) - Dubai / UAE</option>
+          <option value="Europe/Moscow|3|MSK (UTC+3) - Moscow">MSK (UTC+3) - Moscow</option>
+          <option value="Europe/Paris|2|CEST (UTC+2) - Paris / Berlin / Rome">CEST (UTC+2) - Paris / Berlin / Rome</option>
+          <option value="Europe/London|0|GMT/BST (UTC+0) - London / UK">GMT/BST (UTC+0) - London / UK</option>
+          <option value="America/Sao_Paulo|-3|BRT (UTC-3) - São Paulo / Brazil">BRT (UTC-3) - São Paulo / Brazil</option>
+          <option value="America/New_York|-5|EST (UTC-5) - New York / Toronto">EST (UTC-5) - New York / Toronto</option>
+          <option value="America/Chicago|-6|CST (UTC-6) - Chicago / Mexico City">CST (UTC-6) - Chicago / Mexico City</option>
+          <option value="America/Denver|-7|MST (UTC-7) - Denver / Phoenix">MST (UTC-7) - Denver / Phoenix</option>
+          <option value="America/Los_Angeles|-8|PST (UTC-8) - Los Angeles / Vancouver">PST (UTC-8) - Los Angeles / Vancouver</option>
+          <option value="Pacific/Honolulu|-10|HST (UTC-10) - Honolulu / Hawaii">HST (UTC-10) - Honolulu / Hawaii</option>
+        </select>
+      </div>
+
+      <form onsubmit="handleAddSiteTimezone(event)" class="space-y-3 bg-brand-navyDark p-3.5 rounded-2xl border border-brand-borderDark text-xs">
+        <span class="text-xs font-bold text-white block uppercase tracking-wider"><i class="fa-solid fa-plus-circle text-brand-gold mr-1"></i> Add / Update Custom Timezone</span>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-300 mb-1">Display Label *</label>
+            <input type="text" id="siteTzLabelInput" required placeholder="e.g. JST (UTC+9) - Tokyo" class="w-full bg-brand-navy border border-brand-borderDark rounded-xl p-2 text-white outline-none focus:border-brand-gold">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-300 mb-1">UTC Offset (Hours) *</label>
+            <input type="number" step="0.5" id="siteTzOffsetInput" required placeholder="e.g. 9 or -5" class="w-full bg-brand-navy border border-brand-borderDark rounded-xl p-2 text-white outline-none focus:border-brand-gold">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-semibold text-slate-300 mb-1">IANA Region String (Optional)</label>
+          <input type="text" id="siteTzIanaInput" placeholder="e.g. Asia/Tokyo" class="w-full bg-brand-navy border border-brand-borderDark rounded-xl p-2 text-white outline-none focus:border-brand-gold">
+        </div>
+
+        <button type="submit" class="w-full bg-brand-gold hover:bg-brand-goldHover text-brand-navyDark font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow min-h-[44px]">
+          <i class="fa-solid fa-plus"></i> Save &amp; Enable Timezone Option
+        </button>
+      </form>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-200 block uppercase tracking-wider">Active Timezones List:</span>
+          <span id="siteTzCountBadge" class="text-[10px] font-bold text-brand-gold bg-brand-gold/10 border border-brand-gold/30 px-2 py-0.5 rounded-full">0 active</span>
+        </div>
+        <div id="adminSiteTzListContainer" class="max-h-48 overflow-y-auto space-y-2 pr-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANGE PASSWORD MODAL -->
+  <div id="passwordModal" class="fixed inset-0 z-50 bg-brand-navyDark/90 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="bg-brand-navy border border-brand-gold/50 max-w-md w-full rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-5">
+      <button onclick="closePasswordModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-brand-gold/20 text-brand-gold flex items-center justify-center font-bold">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">Change Admin Password</h3>
+          <p class="text-xs text-slate-400">Security verification required</p>
+        </div>
+      </div>
+
+      <form onsubmit="handleChangePasswordSubmit(event)" class="space-y-4">
+        <div class="p-3 bg-brand-navyDark rounded-xl border border-brand-borderDark space-y-1">
+          <span class="text-[10px] text-brand-gold font-bold uppercase tracking-wider block">Security Question:</span>
+          <p class="text-xs font-semibold text-white">When was VectorEd Academy founded?</p>
+          <p class="text-[10px] text-slate-400 italic">(Enter current password OR security answer e.g. "Jan 2025")</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Current Password or Security Answer *</label>
+          <input type="text" id="secAnsInput" required placeholder="Enter current password or answer" class="w-full bg-brand-navyDark border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">New Master Password *</label>
+          <input type="password" id="newPassInput" required placeholder="Set new master password" class="w-full bg-brand-navyDark border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none">
+        </div>
+
+        <button type="submit" class="w-full bg-brand-gold hover:bg-brand-goldHover text-brand-navyDark font-black py-3 rounded-xl text-xs sm:text-sm transition min-h-[44px]">
+          Verify &amp; Update Password Globally
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    // System Configurations & Endpoints
+    const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRFXmtKHCPH9P-CEAUQuIAmkWLeoj76mMnnCjLL7ILJNxgO2HT2hmeeoMSYEqkdiIR/exec";
+
+    // Admin Auth State & Master Password
+    let isAdminLoggedIn = false;
+    let masterPassword = localStorage.getItem('ve_master_password') || '123456';
+
+    // Offered Courses Master Baseline List
+    const DEFAULT_COURSES = [
+      "Physics - Kinematics & Dynamics",
+      "Physics - Electromagnetism & Optics",
+      "Math - Differential & Integral Calculus",
+      "Math - Differential Equations",
+      "Engineering - Statics & Dynamics",
+      "Engineering - Fluid Mechanics & Hydraulics",
+      "Engineering - Thermodynamics & Heat Transfer",
+      "Engineering - Strength of Materials",
+      "Engineering - Machine Design",
+      "High School STEM - Advanced Math & Science",
+      "General Tutoring / Exam Preparation",
+      "Custom / Other Topic (Mention in Notes)"
+    ];
+
+    let courseTopics = JSON.parse(localStorage.getItem('ve_portal_courses')) || [...DEFAULT_COURSES];
+
+    // Timezone Presets Baseline
+    const DEFAULT_TIMEZONES = [
+      { label: "PST (UTC+8) - Manila / Singapore", offset: 8, iana: "Asia/Manila" },
+      { label: "GST (UTC+4) - Dubai / UAE", offset: 4, iana: "Asia/Dubai" },
+      { label: "GMT (UTC+0) - London / UK", offset: 0, iana: "Europe/London" },
+      { label: "EST (UTC-5) - New York / Toronto", offset: -5, iana: "America/New_York" }
+    ];
+
+    let siteTimezones = JSON.parse(localStorage.getItem('ve_portal_timezones')) || [...DEFAULT_TIMEZONES];
+    let selectedOffset = 8; // Baseline Manila/PST UTC+8
+
+    // Scheduling State
+    let selectedDateStr = "";
+    let selectedWeekOffset = 0;
+    let selectedSlotKeysPST = []; // Array of consecutive PST slot strings e.g. ["01:30 PM", "02:00 PM"]
+    let bookedSlots = []; // Merged list of booked slots fetched from backend
+
+    // Standard 30-Minute PST Slots Master Baseline (Extended to 11:30 PM - 12:00 AM Midnight MAX)
+    const MORNING_SLOTS_PST = ["08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM"];
+    const AFTERNOON_SLOTS_PST = ["01:00 PM", "01:30 PM", "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM", "05:00 PM", "05:30 PM"];
+    const EVENING_SLOTS_PST = [
+      "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", 
+      "08:00 PM", "08:30 PM", "09:00 PM", "09:30 PM", 
+      "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"
+    ];
+    const ALL_SLOTS_PST = [...MORNING_SLOTS_PST, ...AFTERNOON_SLOTS_PST, ...EVENING_SLOTS_PST];
+
+    // Helper: Toast Notifications
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toastNotification');
+      const text = document.getElementById('toastText');
+      const icon = document.getElementById('toastIcon');
+      if (text) text.textContent = msg;
+      if (icon) {
+        icon.className = isError 
+          ? "fa-solid fa-triangle-exclamation text-brand-accentRed text-lg" 
+          : "fa-solid fa-circle-check text-brand-gold text-lg";
+      }
+      if (toast) {
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 4000);
+      }
+    }
+
+    // Modal Display Utilities
+    function showModal(id) {
+      const m = document.getElementById(id);
+      if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+    }
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    }
+
+    function openAdminAuthModal() { showModal('adminAuthModal'); }
+    function closeAdminAuthModal() { closeModal('adminAuthModal'); }
+    function openPasswordModal() { showModal('passwordModal'); }
+    function closePasswordModal() { closeModal('passwordModal'); }
+    function openAdminTzModal() { renderAdminTzList(); showModal('adminTzModal'); }
+    function closeAdminTzModal() { closeModal('adminTzModal'); }
+    function openManageCoursesModal() { renderAdminCoursesList(); showModal('manageCoursesModal'); }
+    function closeManageCoursesModal() { closeModal('manageCoursesModal'); }
+
+    // Admin Auth Handlers
+    function handleAdminLoginSubmit(e) {
+      e.preventDefault();
+      const inputPass = document.getElementById('adminPassInput').value;
+      if (inputPass === masterPassword) {
+        isAdminLoggedIn = true;
+        document.body.classList.add('admin-mode-active');
+        document.getElementById('adminToolbar').classList.remove('hidden');
+        closeAdminAuthModal();
+        enableInlineTextEditing(true);
+        showToast("✓ Admin Portal CMS Unlocked!");
+      } else {
+        showToast("❌ Incorrect Master Password.", true);
+      }
+    }
+
+    function logoutAdmin() {
+      isAdminLoggedIn = false;
+      document.body.classList.remove('admin-mode-active');
+      document.getElementById('adminToolbar').classList.add('hidden');
+      enableInlineTextEditing(false);
+      showToast("Logged out of Admin Portal.");
+    }
+
+    function handleChangePasswordSubmit(e) {
+      e.preventDefault();
+      const ansInput = document.getElementById('secAnsInput').value.trim();
+      const ansLower = ansInput.toLowerCase();
+      const newPass = document.getElementById('newPassInput').value.trim();
+
+      // Flexible validation: matches current password OR standard answer variations (jan / 2025)
+      const isValid = (ansInput === masterPassword) || 
+                      (ansLower.includes("jan") || ansLower.includes("2025") || ansLower.includes("january"));
+
+      if (isValid) {
+        if (newPass.length < 4) {
+          showToast("⚠️ Password must be at least 4 characters long.", true);
+          return;
+        }
+
+        masterPassword = newPass;
+        localStorage.setItem('ve_master_password', masterPassword);
+
+        // Save & sync password to Google Sheets cloud state
+        saveAllPortalChanges();
+
+        closePasswordModal();
+        document.getElementById('secAnsInput').value = '';
+        document.getElementById('newPassInput').value = '';
+        showToast("✓ Master password updated and synchronized globally!");
+      } else {
+        showToast("❌ Security answer or current password incorrect.", true);
+      }
+    }
+
+    // Inline Text Editing Engine
+    const PORTAL_TEXT_IDS = [
+      'txtBadge', 'txtTitle', 'txtSubheadline', 
+      'txtCalBarTitle', 'txtCalBarDesc', 
+      'txtSec1Title', 'txtNotesHelper', 
+      'txtSec2Title', 'txtChooseDateLabel', 
+      'txtSec3Title', 'txtGuidanceBanner'
+    ];
+
+    function enableInlineTextEditing(enable) {
+      PORTAL_TEXT_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.contentEditable = enable ? "true" : "false"; }
+      });
+    }
+
+    function loadSavedTextElements() {
+      const saved = JSON.parse(localStorage.getItem('ve_portal_text'));
+      if (saved) {
+        Object.keys(saved).forEach(id => {
+          const el = document.getElementById(id);
+          if (el && saved[id] !== undefined) el.innerHTML = saved[id];
+        });
+      }
+    }
+
+    // Cloud & Local State Synchronization Engine
+    async function fetchCloudState() {
+      if (!APP_SCRIPT_URL) return;
+      try {
+        const res = await fetch(`${APP_SCRIPT_URL}?type=cms_state`);
+        const data = await res.json();
+        if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+          if (data.ve_master_password || data.password) {
+            masterPassword = data.ve_master_password || data.password;
+            localStorage.setItem('ve_master_password', masterPassword);
+          }
+          if (data.ve_portal_courses && Array.isArray(data.ve_portal_courses)) {
+            courseTopics = data.ve_portal_courses;
+            localStorage.setItem('ve_portal_courses', JSON.stringify(courseTopics));
+            populateCourseDropdown();
+          }
+          if (data.ve_portal_timezones && Array.isArray(data.ve_portal_timezones)) {
+            siteTimezones = data.ve_portal_timezones;
+            localStorage.setItem('ve_portal_timezones', JSON.stringify(siteTimezones));
+            populateTimezones();
+          }
+          if (data.ve_portal_text) {
+            localStorage.setItem('ve_portal_text', JSON.stringify(data.ve_portal_text));
+            loadSavedTextElements();
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch central cloud CMS state, using local cache:", err);
+      }
+    }
+
+    function saveAllPortalChanges() {
+      const textMap = {};
+      PORTAL_TEXT_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) textMap[id] = el.innerHTML;
+      });
+
+      localStorage.setItem('ve_portal_text', JSON.stringify(textMap));
+      localStorage.setItem('ve_portal_courses', JSON.stringify(courseTopics));
+      localStorage.setItem('ve_portal_timezones', JSON.stringify(siteTimezones));
+      localStorage.setItem('ve_master_password', masterPassword);
+
+      showToast("✓ Local state saved. Syncing to Google Sheets...");
+
+      if (APP_SCRIPT_URL) {
+        fetch(APP_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            formType: 'cms',
+            password: masterPassword,
+            cmsState: {
+              ve_portal_text: textMap,
+              ve_portal_courses: courseTopics,
+              ve_portal_timezones: siteTimezones,
+              ve_master_password: masterPassword
+            }
+          })
+        }).then(() => {
+          showToast("✓ All Portal changes & master password synced globally!");
+        }).catch(err => {
+          console.warn("Cloud sync dispatch warning:", err);
+        });
+      }
+    }
+
+    // Course & Topic Dropdown Management Engine
+    function populateCourseDropdown() {
+      const select = document.getElementById('studentCourse');
+      if (!select) return;
+
+      let html = `<option value="" disabled selected>Select enrolled course/topic...</option>`;
+      courseTopics.forEach(course => {
+        html += `<option value="${course}">${course}</option>`;
+      });
+
+      select.innerHTML = html;
+    }
+
+    function renderAdminCoursesList() {
+      const container = document.getElementById('adminCoursesListContainer');
+      const badge = document.getElementById('courseCountBadge');
+      if (badge) badge.textContent = `${courseTopics.length} courses`;
+      if (!container) return;
+
+      if (!courseTopics || courseTopics.length === 0) {
+        container.innerHTML = `<div class="text-center py-3 text-slate-500 text-xs">No courses configured.</div>`;
+        return;
+      }
+
+      container.innerHTML = courseTopics.map((course, idx) => `
+        <div class="flex items-center justify-between bg-brand-navy border border-brand-borderDark px-3 py-2 rounded-xl text-xs gap-2">
+          <span class="text-white font-semibold flex-1 truncate">${idx + 1}. ${course}</span>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="moveCourseTopic(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 px-2 py-1 rounded text-[10px] font-bold" title="Move Up"><i class="fa-solid fa-arrow-up"></i></button>
+            <button type="button" onclick="moveCourseTopic(${idx}, 1)" ${idx === courseTopics.length - 1 ? 'disabled' : ''} class="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 px-2 py-1 rounded text-[10px] font-bold" title="Move Down"><i class="fa-solid fa-arrow-down"></i></button>
+            <button type="button" onclick="editCourseTopic(${idx})" class="bg-blue-900/60 hover:bg-blue-800 text-blue-200 px-2 py-1 rounded text-[10px] font-bold"><i class="fa-solid fa-pen"></i> Edit</button>
+            <button type="button" onclick="deleteCourseTopic(${idx})" class="bg-red-900/60 hover:bg-red-800 text-red-200 px-2 py-1 rounded text-[10px] font-bold"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function handleAddCourseTopic(e) {
+      e.preventDefault();
+      const input = document.getElementById('newCourseTopicInput');
+      const val = input.value.trim();
+      if (!val) return;
+
+      courseTopics.push(val);
+      saveAllPortalChanges();
+      populateCourseDropdown();
+      renderAdminCoursesList();
+      input.value = '';
+      showToast("✓ New course topic added!");
+    }
+
+    function editCourseTopic(index) {
+      if (index < 0 || index >= courseTopics.length) return;
+      const current = courseTopics[index];
+      const updated = prompt("Edit Course / Topic Name:", current);
+      if (updated && updated.trim().length > 0) {
+        courseTopics[index] = updated.trim();
+        saveAllPortalChanges();
+        populateCourseDropdown();
+        renderAdminCoursesList();
+        showToast("✓ Course topic updated!");
+      }
+    }
+
+    function deleteCourseTopic(index) {
+      if (courseTopics.length <= 1) {
+        showToast("⚠️ At least one course topic must remain.", true);
+        return;
+      }
+      const target = courseTopics[index];
+      if (confirm(`Are you sure you want to delete "${target}"?`)) {
+        courseTopics.splice(index, 1);
+        saveAllPortalChanges();
+        populateCourseDropdown();
+        renderAdminCoursesList();
+        showToast(`✓ Removed course "${target}".`);
+      }
+    }
+
+    function moveCourseTopic(index, dir) {
+      const target = index + dir;
+      if (target < 0 || target >= courseTopics.length) return;
+      const temp = courseTopics[index];
+      courseTopics[index] = courseTopics[target];
+      courseTopics[target] = temp;
+      saveAllPortalChanges();
+      populateCourseDropdown();
+      renderAdminCoursesList();
+    }
+
+    // Timezone Management Engine
+    function populateTimezones() {
+      const select = document.getElementById('portalTimezone');
+      if (!select) return;
+
+      const exists = siteTimezones.some(t => t.offset === selectedOffset);
+      if (!exists && siteTimezones.length > 0) {
+        selectedOffset = siteTimezones[0].offset;
+      }
+
+      select.innerHTML = siteTimezones.map(tz => 
+        `<option value="${tz.label}" data-offset="${tz.offset}" ${tz.offset === selectedOffset ? 'selected' : ''}>${tz.label}</option>`
+      ).join('');
+    }
+
+    function handleTimezoneChange(tzLabel) {
+      const found = siteTimezones.find(t => t.label === tzLabel);
+      if (found) {
+        selectedOffset = found.offset;
+        renderTimeSlots();
+        updateSummaryDisplay();
+      }
+    }
+
+    function applySiteTzPreset(val) {
+      if (!val) return;
+      const parts = val.split('|');
+      if (parts.length === 3) {
+        document.getElementById('siteTzIanaInput').value = parts[0];
+        document.getElementById('siteTzOffsetInput').value = parts[1];
+        document.getElementById('siteTzLabelInput').value = parts[2];
+      }
+    }
+
+    function renderAdminTzList() {
+      const container = document.getElementById('adminSiteTzListContainer');
+      const badge = document.getElementById('siteTzCountBadge');
+      if (badge) badge.textContent = `${siteTimezones.length} active`;
+      if (!container) return;
+
+      if (!siteTimezones || siteTimezones.length === 0) {
+        container.innerHTML = `<div class="text-center py-3 text-slate-500 text-xs">No active timezones configured.</div>`;
+        return;
+      }
+
+      container.innerHTML = siteTimezones.map((tz, idx) => `
+        <div class="flex items-center justify-between bg-brand-navy border border-brand-borderDark px-3 py-2 rounded-xl text-xs">
+          <div>
+            <span class="text-white font-semibold block">${tz.label}</span>
+            <span class="text-[10px] text-slate-400 font-mono">UTC Offset: ${tz.offset >= 0 ? '+' : ''}${tz.offset} | ${tz.iana || 'UTC'}</span>
+          </div>
+          ${siteTimezones.length > 1 ? `
+          <button type="button" onclick="deleteSiteTimezoneOption(${idx})" class="text-red-400 hover:text-red-300 bg-red-950/60 hover:bg-red-900/80 px-2.5 py-1 rounded-lg border border-red-800/50 transition flex items-center gap-1 min-h-[32px]" title="Delete Timezone">
+            <i class="fa-solid fa-trash-can text-xs"></i> <span class="text-[10px] font-bold">Remove</span>
+          </button>` : `<span class="text-[10px] text-slate-500 italic">Default</span>`}
+        </div>
+      `).join('');
+    }
+
+    function handleAddSiteTimezone(e) {
+      e.preventDefault();
+      const labelInput = document.getElementById('siteTzLabelInput');
+      const offsetInput = document.getElementById('siteTzOffsetInput');
+      const ianaInput = document.getElementById('siteTzIanaInput');
+
+      const label = labelInput.value.trim();
+      const offset = parseFloat(offsetInput.value);
+      const iana = ianaInput.value.trim();
+
+      if (!label || isNaN(offset)) {
+        showToast("⚠️ Please enter a valid label and numeric UTC offset.", true);
+        return;
+      }
+
+      const existingIdx = siteTimezones.findIndex(t => t.label.toLowerCase() === label.toLowerCase());
+      if (existingIdx !== -1) {
+        siteTimezones[existingIdx] = { label, offset, iana: iana || 'UTC' };
+        showToast(`Updated timezone "${label}".`);
+      } else {
+        siteTimezones.push({ label, offset, iana: iana || 'UTC' });
+        showToast(`✓ Added timezone "${label}".`);
+      }
+
+      selectedOffset = offset;
+      saveAllPortalChanges();
+      populateTimezones();
+      renderAdminTzList();
+      renderTimeSlots();
+
+      labelInput.value = ''; offsetInput.value = ''; ianaInput.value = '';
+    }
+
+    function deleteSiteTimezoneOption(index) {
+      if (siteTimezones.length <= 1) {
+        showToast("⚠️ At least one timezone option must remain active.", true);
+        return;
+      }
+
+      const target = siteTimezones[index];
+      if (confirm(`Are you sure you want to delete timezone "${target.label}"?`)) {
+        const deletedOffset = target.offset;
+        siteTimezones.splice(index, 1);
+
+        if (selectedOffset === deletedOffset && siteTimezones.length > 0) {
+          selectedOffset = siteTimezones[0].offset;
+        }
+
+        saveAllPortalChanges();
+        populateTimezones();
+        renderAdminTzList();
+        renderTimeSlots();
+        showToast(`✓ Timezone "${target.label}" removed.`);
+      }
+    }
+
+    // Time Conversion Helper (PST UTC+8 to Target Offset)
+    function convertTimePSTToOffset(timeStrPST, targetOffset) {
+      if (!timeStrPST || targetOffset === 8) return timeStrPST;
+      let cleanTime = timeStrPST.split('-')[0].trim();
+      let match = cleanTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!match) return timeStrPST;
+
+      let h = parseInt(match[1], 10);
+      let m = parseInt(match[2], 10);
+      let ampm = match[3].toUpperCase();
+      if (ampm === 'PM' && h < 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+
+      let totalMins = h * 60 + m + (targetOffset - 8) * 60;
+      let normMins = ((totalMins % 1440) + 1440) % 1440;
+      let targetH = Math.floor(normMins / 60);
+      let targetM = normMins % 60;
+
+      let period = targetH >= 12 ? 'PM' : 'AM';
+      let displayH = targetH % 12;
+      if (displayH === 0) displayH = 12;
+      let strH = displayH < 10 ? '0' + displayH : displayH;
+      let strM = targetM < 10 ? '0' + targetM : targetM;
+      return `${strH}:${strM} ${period}`;
+    }
+
+    // Normalization & Date Extraction Utilities
+    function getMMDD(dStr) {
+      if (!dStr) return '';
+      dStr = String(dStr).trim();
+      let matchISO = dStr.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+      if (matchISO) return `${String(matchISO[2]).padStart(2, '0')}-${String(matchISO[3]).padStart(2, '0')}`;
+      
+      const months = { jan:'01', feb:'02', mar:'03', apr:'04', may:'05', jun:'06', jul:'07', aug:'08', sep:'09', oct:'10', nov:'11', dec:'12' };
+      let matchText = dStr.match(/^([a-zA-Z]{3,9})\s+(\d{1,2})/);
+      if (matchText) {
+        let mKey = matchText[1].substring(0, 3).toLowerCase();
+        return `${months[mKey] || '01'}-${String(matchText[2]).padStart(2, '0')}`;
+      }
+      return dStr;
+    }
+
+    function normalizeTime(tStr) {
+      if (!tStr) return '';
+      tStr = String(tStr).trim();
+      if (tStr.includes('_')) tStr = tStr.split('_')[1] || tStr;
+      if (tStr.includes('-')) tStr = tStr.split('-')[0].trim();
+      let match12 = tStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (match12) {
+        return `${String(match12[1]).padStart(2, '0')}:${String(match12[2]).padStart(2, '0')} ${match12[3].toUpperCase()}`;
+      }
+      return tStr.toUpperCase();
+    }
+
+    // Week & Date Pill Management
+    function getActiveMondayDate() {
+      const today = new Date();
+      const currentDay = today.getDay();
+      const daysToMonday = (currentDay === 0) ? 1 : (1 - currentDay);
+      const baseMonday = new Date(today);
+      baseMonday.setDate(today.getDate() + daysToMonday);
+      baseMonday.setHours(0, 0, 0, 0);
+
+      const activeMonday = new Date(baseMonday);
+      activeMonday.setDate(baseMonday.getDate() + (selectedWeekOffset * 7));
+      return activeMonday;
+    }
+
+    function renderDatePills() {
+      const container = document.getElementById('portalDatePills');
+      const label = document.getElementById('weekRangeLabel');
+      if (!container) return;
+
+      const today = new Date();
+      const currentDay = today.getDay();
+      const activeMonday = getActiveMondayDate();
+
+      const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      const todayMonthStr = monthNames[today.getMonth()];
+      const todayDateNum = today.getDate() < 10 ? '0' + today.getDate() : today.getDate();
+      const todayFormatted = `${todayMonthStr} ${todayDateNum}`;
+
+      let pillsHTML = '';
+      let startDateStr = '';
+      let endDateStr = '';
+      let weekDates = [];
+
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(activeMonday);
+        d.setDate(activeMonday.getDate() + i);
+
+        const mStr = monthNames[d.getMonth()];
+        const dateNum = d.getDate() < 10 ? '0' + d.getDate() : d.getDate();
+        const formattedStr = `${mStr} ${dateNum}`;
+
+        weekDates.push(formattedStr);
+
+        if (i === 0) startDateStr = `${mStr} ${dateNum}`;
+        if (i === 5) endDateStr = `${mStr} ${dateNum}, ${d.getFullYear()}`;
+      }
+
+      if (!selectedDateStr || !weekDates.includes(selectedDateStr)) {
+        if (weekDates.includes(todayFormatted) && currentDay !== 0) {
+          selectedDateStr = todayFormatted;
+        } else {
+          selectedDateStr = weekDates[0];
+        }
+      }
+
+      for (let i = 0; i < 6; i++) {
+        const formattedStr = weekDates[i];
+        const isToday = (formattedStr === todayFormatted && currentDay !== 0);
+        const isSelected = (selectedDateStr === formattedStr);
+
+        pillsHTML += `
+          <button type="button" onclick="selectDate('${formattedStr}', this)" class="date-pill-btn p-2 rounded-2xl border text-xs transition min-h-[44px] flex flex-col justify-center items-center ${isSelected ? 'bg-brand-gold text-brand-navyDark font-black border-brand-gold shadow-lg' : 'bg-brand-navy text-slate-300 border-brand-borderDark hover:border-brand-gold'}">
+            <span class="block text-[9px] opacity-80 uppercase font-mono">${days[i]} ${isToday ? '• TODAY' : ''}</span>
+            <span class="block font-bold mt-0.5 text-xs">${formattedStr}</span>
+          </button>
+        `;
+      }
+
+      container.innerHTML = pillsHTML;
+      if (label) label.textContent = `${startDateStr} - ${endDateStr}`;
+      renderTimeSlots();
+      updateSummaryDisplay();
+    }
+
+    function selectDate(dateStr, btn) {
+      selectedDateStr = dateStr;
+      selectedSlotKeysPST = []; // Reset slot selection when date changes
+      document.querySelectorAll('.date-pill-btn').forEach(b => {
+        b.className = "date-pill-btn p-2 rounded-2xl border text-xs transition min-h-[44px] flex flex-col justify-center items-center bg-brand-navy text-slate-300 border-brand-borderDark hover:border-brand-gold";
+      });
+      if (btn) {
+        btn.className = "date-pill-btn p-2 rounded-2xl border text-xs transition min-h-[44px] flex flex-col justify-center items-center bg-brand-gold text-brand-navyDark font-black border-brand-gold shadow-lg";
+      }
+      renderTimeSlots();
+      updateSummaryDisplay();
+      fetchAvailability();
+    }
+
+    function changeWeekOffset(dir) {
+      selectedWeekOffset += dir;
+      selectedSlotKeysPST = [];
+      renderDatePills();
+      fetchAvailability();
+    }
+
+    // Backend Availability Fetcher across Calendar_State, Bookings, and Student_Reschedules
+    async function fetchAvailability() {
+      if (!APP_SCRIPT_URL) return;
+      try {
+        const res = await fetch(`${APP_SCRIPT_URL}?action=getAvailability`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          bookedSlots = data;
+          renderTimeSlots();
+        }
+      } catch (err) {
+        console.warn("Real-time availability fetch warning:", err);
+      }
+    }
+
+    // Multi-Slot Contiguous Selection Engine
+    function toggleSlotSelection(pstStartStr) {
+      const targetMMDD = getMMDD(selectedDateStr);
+      const targetNormTime = normalizeTime(pstStartStr);
+
+      // Check if slot is already booked
+      const isBooked = bookedSlots.some(b => {
+        return (getMMDD(b.date) === targetMMDD) && (normalizeTime(b.time) === targetNormTime);
+      });
+
+      if (isBooked) {
+        showToast("⚠️ Selected slot is already booked or unavailable.", true);
+        return;
+      }
+
+      const slotIndex = ALL_SLOTS_PST.indexOf(pstStartStr);
+      if (slotIndex === -1) return;
+
+      if (selectedSlotKeysPST.length === 0) {
+        selectedSlotKeysPST = [pstStartStr];
+      } else {
+        const selectedIndices = selectedSlotKeysPST.map(s => ALL_SLOTS_PST.indexOf(s)).sort((a,b) => a - b);
+        const minIdx = selectedIndices[0];
+        const maxIdx = selectedIndices[selectedIndices.length - 1];
+
+        if (slotIndex === minIdx - 1) {
+          // Contiguous extension to the left
+          selectedSlotKeysPST.unshift(pstStartStr);
+        } else if (slotIndex === maxIdx + 1) {
+          // Contiguous extension to the right
+          selectedSlotKeysPST.push(pstStartStr);
+        } else if (selectedSlotKeysPST.includes(pstStartStr)) {
+          // Deselecting slot (trim from edge or reset)
+          if (slotIndex === minIdx) {
+            selectedSlotKeysPST.shift();
+          } else if (slotIndex === maxIdx) {
+            selectedSlotKeysPST.pop();
+          } else {
+            // Clicking inside contiguous range resets selection to clicked slot
+            selectedSlotKeysPST = [pstStartStr];
+            showToast("Selection reset to clicked slot.");
+          }
+        } else {
+          // Non-contiguous click: enforce contiguous rule & notify user
+          selectedSlotKeysPST = [pstStartStr];
+          showToast("⚠️ Multi-slot selection must be contiguous (consecutive blocks). Selection reset.", false);
+        }
+      }
+
+      // Re-sort selected slots chronologically
+      selectedSlotKeysPST.sort((a,b) => ALL_SLOTS_PST.indexOf(a) - ALL_SLOTS_PST.indexOf(b));
+      
+      renderTimeSlots();
+      updateSummaryDisplay();
+    }
+
+    // Render Time Slot Columns
+    function renderTimeSlots() {
+      renderSlotColumn('slotsMorning', MORNING_SLOTS_PST);
+      renderSlotColumn('slotsAfternoon', AFTERNOON_SLOTS_PST);
+      renderSlotColumn('slotsEvening', EVENING_SLOTS_PST);
+    }
+
+    function renderSlotColumn(elementId, slotsPST) {
+      const container = document.getElementById(elementId);
+      if (!container) return;
+
+      const targetMMDD = getMMDD(selectedDateStr);
+
+      container.innerHTML = slotsPST.map(pstTimeStr => {
+        const normPST = normalizeTime(pstTimeStr);
+
+        // Check if slot is booked/blocked
+        const isBooked = bookedSlots.some(b => {
+          return (getMMDD(b.date) === targetMMDD) && (normalizeTime(b.time) === normPST);
+        });
+
+        const isSelected = selectedSlotKeysPST.includes(pstTimeStr);
+        const localDisplay = convertTimePSTToOffset(pstTimeStr, selectedOffset);
+
+        if (isBooked) {
+          return `
+            <button type="button" disabled class="slot-btn w-full py-2.5 px-3 rounded-xl bg-slate-800/90 text-slate-500 text-[11px] font-mono font-bold border border-slate-700/60 cursor-not-allowed opacity-60 flex items-center justify-between shadow-inner min-h-[40px]">
+              <span>${localDisplay}</span>
+              <span class="text-[9px] bg-red-950/80 text-red-400 border border-red-800/50 px-1.5 py-0.5 rounded font-extrabold tracking-wider uppercase">BOOKED</span>
+            </button>
+          `;
+        }
+
+        if (isSelected) {
+          return `
+            <button type="button" onclick="toggleSlotSelection('${pstTimeStr}')" class="slot-btn w-full py-2.5 px-3 rounded-xl bg-brand-gold text-brand-navyDark font-mono font-extrabold border border-brand-gold shadow-lg flex items-center justify-between min-h-[40px]">
+              <span>${localDisplay}</span>
+              <span class="text-[9px] bg-brand-navyDark text-brand-gold px-1.5 py-0.5 rounded font-bold uppercase">SELECTED</span>
+            </button>
+          `;
+        }
+
+        return `
+          <button type="button" onclick="toggleSlotSelection('${pstTimeStr}')" class="slot-btn w-full py-2.5 px-3 rounded-xl bg-brand-navyDark hover:bg-slate-800 text-slate-200 hover:text-white border border-brand-borderDark hover:border-brand-gold font-mono font-bold text-[11px] transition flex items-center justify-between min-h-[40px]">
+            <span>${localDisplay}</span>
+            <span class="text-[9px] text-slate-400 group-hover:text-brand-gold">OPEN</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    // Helper: Compute 30-Min Window Key (e.g., "11:30 PM" -> "11:30 PM - 12:00 AM")
+    function get30MinWindowKey(timeStr) {
+      if (!timeStr) return "";
+      const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!match) return timeStr;
+      let [_, hStr, mStr, ampm] = match;
+      let h = parseInt(hStr, 10);
+      let m = parseInt(mStr, 10);
+      let endM = m + 30;
+      let endH = h;
+      let endAmpm = ampm.toUpperCase();
+      if (endM >= 60) {
+        endM -= 60;
+        endH += 1;
+        if (endH === 12) {
+          endAmpm = (endAmpm === 'AM') ? 'PM' : 'AM';
+        } else if (endH > 12) {
+          endH -= 12;
+        }
+      }
+      const startFormatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm.toUpperCase()}`;
+      const endFormatted = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')} ${endAmpm}`;
+      return `${startFormatted} - ${endFormatted}`;
+    }
+
+    // Calculate End Time given start slot and slot count (Handles 11:30 PM -> 12:00 AM Midnight)
+    function calculateEndTimePST(startSlotPST, count) {
+      if (!startSlotPST) return "";
+      const match = startSlotPST.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!match) return startSlotPST;
+      let [_, hStr, mStr, ampm] = match;
+      let h = parseInt(hStr, 10);
+      let m = parseInt(mStr, 10);
+      if (ampm.toUpperCase() === 'PM' && h < 12) h += 12;
+      if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+
+      let totalMins = h * 60 + m + (count * 30);
+      let targetH = Math.floor(totalMins / 60) % 24;
+      let targetM = totalMins % 60;
+
+      let period = targetH >= 12 ? 'PM' : 'AM';
+      let displayH = targetH % 12;
+      if (displayH === 0) displayH = 12;
+      return `${String(displayH).padStart(2, '0')}:${String(targetM).padStart(2, '0')} ${period}`;
+    }
+
+    // Real-Time Total Duration & Summary Display Update
+    function updateSummaryDisplay() {
+      const summaryDate = document.getElementById('summaryDate');
+      const summaryTimeLocal = document.getElementById('summaryTimeLocal');
+      const summaryTimePST = document.getElementById('summaryTimePST');
+      const durationDisplay = document.getElementById('selectedDurationDisplay');
+
+      const count = selectedSlotKeysPST.length;
+      const totalMinutes = count * 30;
+
+      let durationText = "0 Minutes";
+      if (totalMinutes > 0) {
+        const hrs = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        if (hrs > 0 && mins > 0) durationText = `${hrs} Hour ${mins} Mins (${count} slots)`;
+        else if (hrs > 0) durationText = `${hrs} Hour${hrs > 1 ? 's' : ''} (${count} slots)`;
+        else durationText = `${mins} Mins (${count} slots)`;
+      }
+
+      if (durationDisplay) durationDisplay.textContent = `Selected Duration: ${durationText}`;
+      if (summaryDate) summaryDate.textContent = selectedDateStr || "None";
+
+      if (count === 0) {
+        if (summaryTimeLocal) summaryTimeLocal.textContent = "None Selected";
+        if (summaryTimePST) summaryTimePST.textContent = "None Selected";
+      } else {
+        const startPST = selectedSlotKeysPST[0];
+        const endPST = calculateEndTimePST(startPST, count);
+        const pstRange = `${startPST} - ${endPST}`;
+
+        const startLocal = convertTimePSTToOffset(startPST, selectedOffset);
+        const endLocal = convertTimePSTToOffset(endPST, selectedOffset);
+        const localRange = `${startLocal} - ${endLocal}`;
+
+        if (summaryTimeLocal) summaryTimeLocal.textContent = localRange;
+        if (summaryTimePST) summaryTimePST.textContent = pstRange;
+      }
+    }
+
+    // Submit Handler with Optimistic UI & Rollback Safety
+    async function handleStudentScheduleSubmit(e) {
+      e.preventDefault();
+
+      if (selectedSlotKeysPST.length === 0) {
+        showToast("⚠️ Please select at least one open time slot block.", true);
+        return;
+      }
+
+      const nameInput = document.getElementById('studentName');
+      const courseInput = document.getElementById('studentCourse');
+      const notesInput = document.getElementById('studentNotes');
+
+      const name = nameInput.value.trim();
+      const course = courseInput.value;
+      const notes = notesInput.value.trim();
+
+      if (!name || name.length < 2) {
+        showToast("⚠️ Please enter a valid student full name.", true);
+        nameInput.focus();
+        return;
+      }
+
+      if (!course) {
+        showToast("⚠️ Please select your course and topic.", true);
+        courseInput.focus();
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitSchedule');
+      const origText = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Registering Session...`;
+      btn.disabled = true;
+
+      // Calculate PST Start & End Times
+      const startTimePST = selectedSlotKeysPST[0];
+      const endTimePST = calculateEndTimePST(startTimePST, selectedSlotKeysPST.length);
+      const slotKeysWindowPST = selectedSlotKeysPST.map(s => get30MinWindowKey(s)).join(', ');
+
+      // Derive WeekKey (Monday ISO) and SlotKeys for Calendar_State compatibility
+      const activeMonday = getActiveMondayDate();
+      const yyyy = activeMonday.getFullYear();
+      const mm = String(activeMonday.getMonth() + 1).padStart(2, '0');
+      const dd = String(activeMonday.getDate()).padStart(2, '0');
+      const weekKey = `${yyyy}-${mm}-${dd}`;
+
+      const dayNamesFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      let derivedDayName = 'Monday';
+
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(activeMonday);
+        d.setDate(activeMonday.getDate() + i);
+        const mStr = monthNames[d.getMonth()];
+        const dateNum = d.getDate() < 10 ? '0' + d.getDate() : d.getDate();
+        const formattedStr = `${mStr} ${dateNum}`;
+        if (selectedDateStr === formattedStr) {
+          derivedDayName = dayNamesFull[i];
+          break;
+        }
+      }
+
+      // Generate ALL 30-minute PST slot keys for multi-slot booking sync
+      const slotKeysArrayPST = selectedSlotKeysPST.map(s => `${derivedDayName}_${get30MinWindowKey(s)}`);
+      const primarySlotKeyPST = slotKeysArrayPST[0];
+
+      // Optimistic UI Update: Lock slots locally immediately
+      const optimisticAdded = selectedSlotKeysPST.map(s => ({ date: selectedDateStr, time: s }));
+      bookedSlots.push(...optimisticAdded);
+      renderTimeSlots();
+
+      const payload = {
+        formType: 'student_scheduling',
+        studentName: name,
+        courseTopic: course,
+        selectedDate: selectedDateStr,
+        startTimePST: startTimePST,
+        endTimePST: endTimePST,
+        slotKeysPST: slotKeysWindowPST,
+        slotKeysArray: slotKeysArrayPST,
+        notes: notes,
+        weekKey: weekKey,
+        slotKey: primarySlotKeyPST,
+        sourceForm: 'Student Portal',
+        timezone: document.getElementById('portalTimezone').value || 'PST (UTC+8) - Manila / Singapore'
+      };
+
+      try {
+        const res = await fetch(APP_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        showToast("✓ Session Schedule Confirmed! Synchronized with VectorEd Engine.");
+        e.target.reset();
+        selectedSlotKeysPST = [];
+        updateSummaryDisplay();
+        btn.innerHTML = origText;
+        btn.disabled = false;
+
+        // Fetch fresh state from cloud
+        setTimeout(fetchAvailability, 1200);
+
+      } catch (err) {
+        console.error("Submission failed, rolling back UI:", err);
+        // Rollback optimistic update
+        bookedSlots = bookedSlots.filter(b => !optimisticAdded.includes(b));
+        renderTimeSlots();
+        showToast("❌ Submission failed due to a network error. Please try again.", true);
+        btn.innerHTML = origText;
+        btn.disabled = false;
+      }
+    }
+
+    // Initializer
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSavedTextElements();
+      populateCourseDropdown();
+      populateTimezones();
+      renderDatePills();
+      fetchAvailability();
+      fetchCloudState();
+    });
+  </script>
+</body>
+</html>
