@@ -186,6 +186,29 @@
   <!-- MAIN CONTAINER -->
   <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
     
+    <!-- DYNAMIC PAID TRIAL MODE BANNER (Hidden unless ?mode=paid_trial) -->
+    <div id="trialModeBanner" class="hidden bg-gradient-to-r from-amber-500/20 via-brand-navy to-amber-500/20 border border-brand-gold/50 rounded-2xl p-4 sm:p-5 mb-8 shadow-xl relative overflow-hidden">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-brand-gold/20 text-brand-gold flex items-center justify-center shrink-0 font-bold text-lg mt-0.5">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="bg-brand-gold text-brand-navyDark px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">PAID TRIAL CLASS GATEWAY</span>
+              <span id="trialPkgBadge" class="text-xs font-mono font-bold text-brand-gold">Recommended: Mastery Package</span>
+            </div>
+            <h2 class="text-base sm:text-lg font-bold text-white mt-1">1 to 2 Hour Dedicated Trial Class Session</h2>
+            <p class="text-xs text-slate-300">Select contiguous 30-minute time slots (min. 1 hour / 2 slots up to max. 2 hours / 4 slots) to reserve your session.</p>
+          </div>
+        </div>
+        <div class="bg-brand-navyDark/80 border border-brand-borderDark px-3.5 py-2 rounded-xl shrink-0 text-center text-xs font-mono">
+          <span class="text-slate-400 block text-[10px]">Quiz Diagnostic ID</span>
+          <span id="trialAnswersBadge" class="text-brand-gold font-bold">Q1-Q5: A, B, C, A, D</span>
+        </div>
+      </div>
+    </div>
+
     <!-- HEADER BLOCK -->
     <div class="text-center space-y-3 mb-8">
       <div class="inline-flex items-center gap-2 bg-brand-navy border border-brand-gold/40 px-3.5 py-1.5 rounded-full text-xs font-semibold text-brand-gold shadow-md">
@@ -250,9 +273,22 @@
             </div>
           </div>
 
+          <!-- DYNAMIC TRIAL CONTACT FIELDS (Hidden by default, shown in ?mode=paid_trial) -->
+          <div id="trialContactFields" class="hidden grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Email Address * <span class="text-brand-gold text-[10px]">(For trial class confirmation)</span></label>
+              <input type="email" id="studentEmail" placeholder="you@domain.com" class="w-full bg-brand-navy border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition min-h-[44px]">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Cellphone Number (09XXXXXXXXX) *</label>
+              <input type="tel" id="studentPhone" maxlength="11" pattern="09[0-9]{9}" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)" placeholder="09171234567" class="w-full bg-brand-navy border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition min-h-[44px]">
+            </div>
+          </div>
+
           <div>
             <label class="block text-xs font-semibold text-slate-300 mb-1">Reason for Reschedule / Additional Notes <span class="text-slate-400 font-normal">(Optional)</span></label>
-            <textarea id="studentNotes" rows="2" placeholder="Provide short context if rescheduling due to an emergency or special circumstance for fee-waiver review." class="w-full bg-brand-navy border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition"></textarea>
+            <textarea id="studentNotes" rows="2" placeholder="Provide short context or special notes for your session..." class="w-full bg-brand-navy border border-brand-borderDark focus:border-brand-gold rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition"></textarea>
             <p id="txtNotesHelper" class="text-[11px] text-slate-400 mt-1">
               <i class="fa-solid fa-circle-info text-brand-gold mr-1"></i>
               Provide short context if rescheduling due to an emergency or special circumstance for fee-waiver review.
@@ -382,7 +418,7 @@
         <!-- SUBMIT BUTTON -->
         <button type="submit" id="btnSubmitSchedule" class="w-full bg-brand-gold hover:bg-brand-goldHover text-brand-navyDark font-black py-4 rounded-2xl text-xs sm:text-sm transition gold-glow flex items-center justify-center gap-2 shadow-2xl min-h-[50px]">
           <i class="fa-solid fa-calendar-check text-base"></i>
-          <span>Confirm &amp; Submit Session Schedule</span>
+          <span id="btnSubmitText">Confirm &amp; Submit Session Schedule</span>
         </button>
 
       </form>
@@ -591,6 +627,11 @@
     // System Configurations & Endpoints
     const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRFXmtKHCPH9P-CEAUQuIAmkWLeoj76mMnnCjLL7ILJNxgO2HT2hmeeoMSYEqkdiIR/exec";
 
+    // Trial Mode Detection State
+    let isTrialMode = false;
+    let trialPackage = "Mastery Package (7 Hours)";
+    let trialAnswersShorthand = "N/A";
+
     // Admin Auth State & Master Password
     let isAdminLoggedIn = false;
     let masterPassword = localStorage.getItem('ve_master_password') || '123456';
@@ -676,6 +717,48 @@
     function openManageCoursesModal() { renderAdminCoursesList(); showModal('manageCoursesModal'); }
     function closeManageCoursesModal() { closeModal('manageCoursesModal'); }
 
+    // Detect URL Parameters for Paid Trial Mode
+    function checkTrialModeTrigger() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const mode = urlParams.get('mode');
+      const pkg = urlParams.get('package');
+      const answers = urlParams.get('answers');
+
+      if (mode === 'paid_trial' || mode === 'trial') {
+        isTrialMode = true;
+        if (pkg) trialPackage = pkg;
+        if (answers) trialAnswersShorthand = answers;
+
+        // UI Adjustments for Trial Mode
+        const trialBanner = document.getElementById('trialModeBanner');
+        const trialContact = document.getElementById('trialContactFields');
+        const badge = document.getElementById('txtBadge');
+        const title = document.getElementById('txtTitle');
+        const subheadline = document.getElementById('txtSubheadline');
+        const guidance = document.getElementById('txtGuidanceBanner');
+        const submitBtnText = document.getElementById('btnSubmitText');
+        const trialPkgBadge = document.getElementById('trialPkgBadge');
+        const trialAnswersBadge = document.getElementById('trialAnswersBadge');
+
+        if (trialBanner) trialBanner.classList.remove('hidden');
+        if (trialContact) {
+          trialContact.classList.remove('hidden');
+          trialContact.classList.add('grid');
+          document.getElementById('studentEmail').required = true;
+          document.getElementById('studentPhone').required = true;
+        }
+
+        if (trialPkgBadge) trialPkgBadge.textContent = `Recommended: ${trialPackage}`;
+        if (trialAnswersBadge) trialAnswersBadge.textContent = `Quiz Answers: ${trialAnswersShorthand}`;
+
+        if (badge) badge.textContent = "Paid Trial Class Portal";
+        if (title) title.textContent = "Book Paid 1-to-2 Hour Trial Class Session";
+        if (subheadline) subheadline.textContent = "Confirm your student contact details, choose your preferred session block (1 to 2 hours), and lock in your live trial class.";
+        if (guidance) guidance.textContent = "Paid Trial Constraint: Select consecutive 30-minute time blocks for a total duration of 1 HOUR MINIMUM (2 slots) up to 2 HOURS MAXIMUM (4 slots).";
+        if (submitBtnText) submitBtnText.textContent = "Confirm & Reserve Paid Trial Class Slot";
+      }
+    }
+
     // Admin Auth Handlers
     function handleAdminLoginSubmit(e) {
       e.preventDefault();
@@ -706,7 +789,6 @@
       const ansLower = ansInput.toLowerCase();
       const newPass = document.getElementById('newPassInput').value.trim();
 
-      // Flexible validation: matches current password OR standard answer variations (jan / 2025)
       const isValid = (ansInput === masterPassword) || 
                       (ansLower.includes("jan") || ansLower.includes("2025") || ansLower.includes("january"));
 
@@ -719,7 +801,6 @@
         masterPassword = newPass;
         localStorage.setItem('ve_master_password', masterPassword);
 
-        // Save & sync password to Google Sheets cloud state
         saveAllPortalChanges();
 
         closePasswordModal();
@@ -1196,7 +1277,7 @@
       }
     }
 
-    // Multi-Slot Contiguous Selection Engine
+    // Multi-Slot Contiguous Selection Engine with Trial Mode Max 2 Hrs Limit
     function toggleSlotSelection(pstStartStr) {
       const targetMMDD = getMMDD(selectedDateStr);
       const targetNormTime = normalizeTime(pstStartStr);
@@ -1220,6 +1301,15 @@
         const selectedIndices = selectedSlotKeysPST.map(s => ALL_SLOTS_PST.indexOf(s)).sort((a,b) => a - b);
         const minIdx = selectedIndices[0];
         const maxIdx = selectedIndices[selectedIndices.length - 1];
+
+        // Enforce maximum slot limit for Paid Trial Mode (2 Hours = 4 slots max)
+        if (isTrialMode && selectedSlotKeysPST.length >= 4 && !selectedSlotKeysPST.includes(pstStartStr)) {
+          showToast("⚠️ Paid Trial Class limit: Maximum 2 Hours (4 slots). Resetting to selected slot.");
+          selectedSlotKeysPST = [pstStartStr];
+          renderTimeSlots();
+          updateSummaryDisplay();
+          return;
+        }
 
         if (slotIndex === minIdx - 1) {
           // Contiguous extension to the left
@@ -1397,6 +1487,18 @@
         return;
       }
 
+      // Enforce Duration Constraints for Paid Trial Mode (Min 1 Hour / 2 slots, Max 2 Hours / 4 slots)
+      if (isTrialMode) {
+        if (selectedSlotKeysPST.length < 2) {
+          showToast("⚠️ Paid Trial Class constraint: Minimum duration is 1 HOUR (2 contiguous slots). Please select 1 more block.", true);
+          return;
+        }
+        if (selectedSlotKeysPST.length > 4) {
+          showToast("⚠️ Paid Trial Class constraint: Maximum duration is 2 HOURS (4 contiguous slots).", true);
+          return;
+        }
+      }
+
       const nameInput = document.getElementById('studentName');
       const courseInput = document.getElementById('studentCourse');
       const notesInput = document.getElementById('studentNotes');
@@ -1415,6 +1517,31 @@
         showToast("⚠️ Please select your course and topic.", true);
         courseInput.focus();
         return;
+      }
+
+      let emailVal = "";
+      let phoneVal = "";
+
+      // Validate Contact Info for Trial Mode
+      if (isTrialMode) {
+        const emailInput = document.getElementById('studentEmail');
+        const phoneInput = document.getElementById('studentPhone');
+        emailVal = emailInput.value.trim();
+        phoneVal = phoneInput.value.trim();
+
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailVal || !emailRegex.test(emailVal)) {
+          showToast("⚠️ Please enter a valid email address.", true);
+          emailInput.focus();
+          return;
+        }
+
+        const phoneRegex = /^09\d{9}$/;
+        if (!phoneVal || !phoneRegex.test(phoneVal)) {
+          showToast("⚠️ Phone number must be 11 digits starting with 09 (e.g. 09171234567).", true);
+          phoneInput.focus();
+          return;
+        }
       }
 
       const btn = document.getElementById('btnSubmitSchedule');
@@ -1459,20 +1586,31 @@
       bookedSlots.push(...optimisticAdded);
       renderTimeSlots();
 
+      const startLocal = convertTimePSTToOffset(startTimePST, selectedOffset);
+      const endLocal = convertTimePSTToOffset(endTimePST, selectedOffset);
+      const localTimeWindow = `${startLocal} - ${endLocal}`;
+
       const payload = {
-        formType: 'student_scheduling',
+        formType: isTrialMode ? 'paid_trial_booking' : 'student_scheduling',
         studentName: name,
         courseTopic: course,
         selectedDate: selectedDateStr,
         startTimePST: startTimePST,
         endTimePST: endTimePST,
+        timeWindowLocal: localTimeWindow,
         slotKeysPST: slotKeysWindowPST,
         slotKeysArray: slotKeysArrayPST,
         notes: notes,
         weekKey: weekKey,
         slotKey: primarySlotKeyPST,
-        sourceForm: 'Student Portal',
-        timezone: document.getElementById('portalTimezone').value || 'PST (UTC+8) - Manila / Singapore'
+        sourceForm: isTrialMode ? 'Paid Trial Gateway' : 'Student Portal',
+        timezone: document.getElementById('portalTimezone').value || 'PST (UTC+8) - Manila / Singapore',
+        // Paid Trial Specific Data
+        email: emailVal,
+        phone: phoneVal,
+        recommendedPackage: trialPackage,
+        quizAnswers: trialAnswersShorthand,
+        isPaidTrial: isTrialMode
       };
 
       try {
@@ -1483,7 +1621,11 @@
           body: JSON.stringify(payload)
         });
 
-        showToast("✓ Session Schedule Confirmed! Synchronized with VectorEd Engine.");
+        const successMsg = isTrialMode 
+          ? "✓ Paid Trial Class Slot Reserved! Our team will contact you shortly."
+          : "✓ Session Schedule Confirmed! Synchronized with VectorEd Engine.";
+
+        showToast(successMsg);
         e.target.reset();
         selectedSlotKeysPST = [];
         updateSummaryDisplay();
@@ -1506,6 +1648,7 @@
 
     // Initializer
     document.addEventListener('DOMContentLoaded', () => {
+      checkTrialModeTrigger();
       loadSavedTextElements();
       populateCourseDropdown();
       populateTimezones();
