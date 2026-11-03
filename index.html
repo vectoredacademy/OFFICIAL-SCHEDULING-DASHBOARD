@@ -1369,7 +1369,7 @@
       }).join('');
     }
 
-    // Helper: Compute 30-Min Window Key (e.g., "11:30 PM" -> "11:30 PM - 12:00 AM")
+    // Helper: Compute 30-Min Window Key
     function get30MinWindowKey(timeStr) {
       if (!timeStr) return "";
       const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -1394,7 +1394,7 @@
       return `${startFormatted} - ${endFormatted}`;
     }
 
-    // Calculate End Time given start slot and slot count (Handles 11:30 PM -> 12:00 AM Midnight)
+    // Calculate End Time given start slot and slot count
     function calculateEndTimePST(startSlotPST, count) {
       if (!startSlotPST) return "";
       const match = startSlotPST.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -1480,7 +1480,6 @@
         return;
       }
 
-      // Mandatory validation for Email & Cellphone in Trial Mode
       if (isPaidTrialMode) {
         if (!email || !email.includes('@')) {
           showToast("⚠️ Please enter a valid Email Address for Trial Mode.", true);
@@ -1500,7 +1499,6 @@
         return;
       }
 
-      // Slot Count Validation for Trial Mode (1 hr min = 2 slots, 2 hrs max = 4 slots)
       if (isPaidTrialMode) {
         if (selectedSlotKeysPST.length < 2) {
           showToast("⚠️ Trial Mode requires a minimum booking of 1 hour (2 contiguous 30-min slots).", true);
@@ -1522,12 +1520,10 @@
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Registering Session...`;
       btn.disabled = true;
 
-      // Calculate PST Start & End Times
       const startTimePST = selectedSlotKeysPST[0];
       const endTimePST = calculateEndTimePST(startTimePST, selectedSlotKeysPST.length);
       const slotKeysWindowPST = selectedSlotKeysPST.map(s => get30MinWindowKey(s)).join(', ');
 
-      // Derive WeekKey (Monday ISO) and SlotKeys for Calendar_State compatibility
       const activeMonday = getActiveMondayDate();
       const yyyy = activeMonday.getFullYear();
       const mm = String(activeMonday.getMonth() + 1).padStart(2, '0');
@@ -1550,11 +1546,9 @@
         }
       }
 
-      // Generate ALL 30-minute PST slot keys for multi-slot booking sync
       const slotKeysArrayPST = selectedSlotKeysPST.map(s => `${derivedDayName}_${get30MinWindowKey(s)}`);
       const primarySlotKeyPST = slotKeysArrayPST[0];
 
-      // Optimistic UI Update: Lock slots locally immediately
       const optimisticAdded = selectedSlotKeysPST.map(s => ({ date: selectedDateStr, time: s }));
       bookedSlots.push(...optimisticAdded);
       renderTimeSlots();
@@ -1579,7 +1573,7 @@
       };
 
       try {
-        const res = await fetch(APP_SCRIPT_URL, {
+        await fetch(APP_SCRIPT_URL, {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1593,12 +1587,10 @@
         btn.innerHTML = origText;
         btn.disabled = false;
 
-        // Fetch fresh state from cloud
         setTimeout(fetchAvailability, 1200);
 
       } catch (err) {
         console.error("Submission failed, rolling back UI:", err);
-        // Rollback optimistic update
         bookedSlots = bookedSlots.filter(b => !optimisticAdded.includes(b));
         renderTimeSlots();
         showToast("❌ Submission failed due to a network error. Please try again.", true);
