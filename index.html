@@ -218,6 +218,15 @@
           </p>
         </div>
       </div>
+
+      <!-- QUIZ RESULT INJECTION BANNER (PORTAL) -->
+      <div id="portalQuizNotice" class="hidden max-w-3xl mx-auto mt-4 p-3.5 bg-brand-navy/90 rounded-2xl border border-brand-gold/50 text-xs text-brand-gold flex items-center justify-between shadow-xl">
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+          <span>Matcher Result Attached: <strong id="portalInjectedPkgName" class="text-white">Mastery Package</strong> (<span id="portalInjectedAnswers">A, B, C, A, B</span>)</span>
+        </div>
+        <button type="button" onclick="clearPortalQuizInjection()" class="text-slate-400 hover:text-white text-[11px] underline">Clear</button>
+      </div>
     </div>
 
     <!-- DIRECT CALENDAR ACCESS BAR -->
@@ -393,6 +402,18 @@
             <span id="selectedDurationDisplay" class="text-xs font-mono font-extrabold text-brand-gold bg-brand-gold/15 border border-brand-gold/40 px-3.5 py-1.5 rounded-full text-center shadow-md">
               Selected Duration: 0 Minutes
             </span>
+          </div>
+
+          <!-- DYNAMIC MATCHED PACKAGE & DIAGNOSTIC PROFILE HIGHLIGHT BOX -->
+          <div id="summaryMatchedPkgBox" class="p-3 bg-brand-gold/10 border border-brand-gold/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-wand-magic-sparkles text-brand-gold text-sm"></i>
+              <div>
+                <span class="text-slate-300 font-medium">Recommended Program Package: </span>
+                <strong id="summaryPkgTitle" class="text-brand-gold font-black">Direct Booking / General Session</strong>
+              </div>
+            </div>
+            <span id="summaryQuizAnswers" class="text-[11px] font-mono text-slate-300 bg-brand-navyDark px-2.5 py-1 rounded-lg border border-brand-borderDark shrink-0">Profile Answers: N/A</span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
@@ -626,6 +647,56 @@
     // Mode Detection Parameters (Paid Trial Mode)
     const urlParams = new URLSearchParams(window.location.search);
     const isPaidTrialMode = (urlParams.get('mode') === 'paid_trial');
+
+    // Global Quiz / Matcher Data Injection State
+    window.activeQuizPackage = "Direct Booking";
+    window.activeQuizAnswers = "N/A";
+
+    // Extract Quiz Data from URL Parameters or Storage & Populate UI Cockpit
+    function extractQuizParamsOnLoad() {
+      // Check window.location.search & window.location.hash for params
+      const searchStr = window.location.search || (window.location.hash.includes('?') ? '?' + window.location.hash.split('?')[1] : '');
+      const params = new URLSearchParams(searchStr);
+
+      const pkg = params.get('pkg') || params.get('package') || params.get('recommendedPackage') || 
+                  sessionStorage.getItem('ve_recommended_pkg') || localStorage.getItem('ve_recommended_pkg');
+      const answers = params.get('answers') || params.get('diagnosticAnswers') || params.get('quizAnswers') || 
+                      sessionStorage.getItem('ve_quiz_answers') || localStorage.getItem('ve_quiz_answers');
+
+      if (pkg || answers) {
+        window.activeQuizPackage = pkg ? decodeURIComponent(pkg).trim() : "Direct Booking";
+        window.activeQuizAnswers = answers ? decodeURIComponent(answers).trim() : "N/A";
+
+        const notice = document.getElementById('portalQuizNotice');
+        const pkgElem = document.getElementById('portalInjectedPkgName');
+        const ansElem = document.getElementById('portalInjectedAnswers');
+
+        if (pkgElem) pkgElem.textContent = window.activeQuizPackage;
+        if (ansElem) ansElem.textContent = window.activeQuizAnswers;
+        if (notice) notice.classList.remove('hidden');
+      }
+
+      // Synchronize Matched Package Title & Answers into Summary Cockpit Box
+      const summaryPkgTitle = document.getElementById('summaryPkgTitle');
+      const summaryQuizAnswers = document.getElementById('summaryQuizAnswers');
+      if (summaryPkgTitle) summaryPkgTitle.textContent = window.activeQuizPackage;
+      if (summaryQuizAnswers) summaryQuizAnswers.textContent = `Profile Answers: ${window.activeQuizAnswers}`;
+    }
+
+    function clearPortalQuizInjection() {
+      window.activeQuizPackage = "Direct Booking";
+      window.activeQuizAnswers = "N/A";
+      sessionStorage.removeItem('ve_recommended_pkg');
+      sessionStorage.removeItem('ve_quiz_answers');
+
+      const notice = document.getElementById('portalQuizNotice');
+      if (notice) notice.classList.add('hidden');
+
+      const summaryPkgTitle = document.getElementById('summaryPkgTitle');
+      const summaryQuizAnswers = document.getElementById('summaryQuizAnswers');
+      if (summaryPkgTitle) summaryPkgTitle.textContent = "Direct Booking / General Session";
+      if (summaryQuizAnswers) summaryQuizAnswers.textContent = "Profile Answers: N/A";
+    }
 
     // Admin Auth State & Master Password
     let isAdminLoggedIn = false;
@@ -1569,7 +1640,10 @@
         weekKey: weekKey,
         slotKey: primarySlotKeyPST,
         sourceForm: isPaidTrialMode ? 'Trial Mode Portal' : 'Student Portal',
-        timezone: document.getElementById('portalTimezone').value || 'PST (UTC+8) - Manila / Singapore'
+        timezone: document.getElementById('portalTimezone').value || 'PST (UTC+8) - Manila / Singapore',
+        // Include Matcher Package and Diagnostic Answers in payload
+        recommendedPackage: window.activeQuizPackage || "Direct Booking",
+        diagnosticAnswers: window.activeQuizAnswers || "N/A"
       };
 
       try {
@@ -1601,6 +1675,7 @@
 
     // Initializer
     document.addEventListener('DOMContentLoaded', () => {
+      extractQuizParamsOnLoad();
       applyModeUIConstraints();
       loadSavedTextElements();
       populateCourseDropdown();
