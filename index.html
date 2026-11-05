@@ -839,7 +839,7 @@
 
       // Flexible validation: matches current password OR standard answer variations (jan / 2025)
       const isValid = (ansInput === masterPassword) || 
-                      (ansLower.includes("jan") || ansLower.includes("2025") || ansLower.includes("january"));
+                      (ansLower.includes("jan") && ansLower.includes("2025"));
 
       if (isValid) {
         if (newPass.length < 4) {
@@ -1191,27 +1191,66 @@
     function getMMDD(dStr) {
       if (!dStr) return '';
       dStr = String(dStr).trim();
-      let matchISO = dStr.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
-      if (matchISO) return `${String(matchISO[2]).padStart(2, '0')}-${String(matchISO[3]).padStart(2, '0')}`;
-      
-      const months = { jan:'01', feb:'02', mar:'03', apr:'04', may:'05', jun:'06', jul:'07', aug:'08', sep:'09', oct:'10', nov:'11', dec:'12' };
-      let matchText = dStr.match(/^([a-zA-Z]{3,9})\s+(\d{1,2})/);
+
+      let matchISO = dStr.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (matchISO) {
+        let m = String(matchISO[2]).padStart(2, '0');
+        let d = String(matchISO[3]).padStart(2, '0');
+        return `${m}-${d}`;
+      }
+
+      const months = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+      let matchText = dStr.match(/^([a-zA-Z]{3,9})\s+(\d{1,2})(?:[,\s]+(\d{4}))?$/);
       if (matchText) {
         let mKey = matchText[1].substring(0, 3).toLowerCase();
-        return `${months[mKey] || '01'}-${String(matchText[2]).padStart(2, '0')}`;
+        let m = months[mKey] || '01';
+        let d = String(matchText[2]).padStart(2, '0');
+        return `${m}-${d}`;
       }
+
+      let matchUS = dStr.match(/^(\d{1,2})[-/](\d{1,2})(?:[-/](\d{4}))?$/);
+      if (matchUS) {
+        let m = String(matchUS[1]).padStart(2, '0');
+        let d = String(matchUS[2]).padStart(2, '0');
+        return `${m}-${d}`;
+      }
+
+      let parsed = new Date(dStr);
+      if (!isNaN(parsed.getTime())) {
+        let m = String(parsed.getMonth() + 1).padStart(2, '0');
+        let d = String(parsed.getDate()).padStart(2, '0');
+        return `${m}-${d}`;
+      }
+
       return dStr;
     }
 
     function normalizeTime(tStr) {
       if (!tStr) return '';
       tStr = String(tStr).trim();
-      if (tStr.includes('_')) tStr = tStr.split('_')[1] || tStr;
-      if (tStr.includes('-')) tStr = tStr.split('-')[0].trim();
-      let match12 = tStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+      if (tStr.includes('_')) { tStr = tStr.split('_')[1] || tStr; }
+      if (tStr.includes('-')) { tStr = tStr.split('-')[0].trim(); }
+
+      let match12 = tStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
       if (match12) {
-        return `${String(match12[1]).padStart(2, '0')}:${String(match12[2]).padStart(2, '0')} ${match12[3].toUpperCase()}`;
+        let h = parseInt(match12[1], 10);
+        let m = String(match12[2]).padStart(2, '0');
+        let ampm = match12[3].toUpperCase();
+        let displayH = String(h).padStart(2, '0');
+        return `${displayH}:${m} ${ampm}`;
       }
+
+      let match24 = tStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+      if (match24) {
+        let h = parseInt(match24[1], 10);
+        let m = String(match24[2]).padStart(2, '0');
+        let ampm = h >= 12 ? 'PM' : 'AM';
+        let h12 = h % 12; if (h12 === 0) h12 = 12;
+        let displayH = String(h12).padStart(2, '0');
+        return `${displayH}:${m} ${ampm}`;
+      }
+
       return tStr.toUpperCase();
     }
 
@@ -1316,12 +1355,63 @@
     async function fetchAvailability() {
       if (!APP_SCRIPT_URL) return;
       try {
-        const res = await fetch(`${APP_SCRIPT_URL}?action=getAvailability`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          bookedSlots = data;
-          renderTimeSlots();
+        let fetchedList = [];
+
+        try {
+          const res1 = await fetch(`${APP_SCRIPT_URL}?action=getAvailability`);
+          const data1 = await res1.json();
+          if (Array.isArray(data1)) {
+            data1.forEach(item => {
+              if (item && item.date && item.time) {
+                fetchedList.push({ date: item.date, time: item.time });
+              }
+            });
+          }
+        } catch (e1) {
+          console.warn("Bookings fetch warning:", e1);
         }
+
+        try {
+          const res2 = await fetch(APP_SCRIPT_URL);
+          const data2 = await res2.json();
+          if (data2 && data2.schedules && typeof data2.schedules === 'object') {
+            const dayMap = { 'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6 };
+
+            Object.keys(data2.schedules).forEach(weekKey => {
+              const daySlots = data2.schedules[weekKey];
+              if (daySlots && typeof daySlots === 'object') {
+                Object.keys(daySlots).forEach(slotKey => {
+                  const slotObj = daySlots[slotKey];
+                  if (slotObj && (slotObj.status === 'booked' || slotObj.status === 'blocked' || slotObj.booked)) {
+                    let actualDate = weekKey;
+                    
+                    const parts = slotKey.split('_');
+                    if (parts.length > 1) {
+                      const dayName = parts[0].toLowerCase().trim();
+                      if (dayMap.hasOwnProperty(dayName) && weekKey.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                        const monDate = new Date(weekKey + 'T00:00:00');
+                        const offset = dayMap[dayName];
+                        monDate.setDate(monDate.getDate() + offset);
+                        
+                        const yyyy = monDate.getFullYear();
+                        const mm = String(monDate.getMonth() + 1).padStart(2, '0');
+                        const dd = String(monDate.getDate()).padStart(2, '0');
+                        actualDate = `${yyyy}-${mm}-${dd}`;
+                      }
+                    }
+                    
+                    fetchedList.push({ date: actualDate, time: slotKey });
+                  }
+                });
+              }
+            });
+          }
+        } catch (e2) {
+          console.warn("Calendar_State fetch warning:", e2);
+        }
+
+        bookedSlots = fetchedList;
+        renderTimeSlots();
       } catch (err) {
         console.warn("Real-time availability fetch warning:", err);
       }
