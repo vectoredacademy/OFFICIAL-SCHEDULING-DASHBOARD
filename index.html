@@ -1641,13 +1641,32 @@
         return;
       }
 
+      if (email) {
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) {
+          showToast("⚠️ Please enter a valid email address.", true);
+          if (emailInput) emailInput.focus();
+          return;
+        }
+      }
+
+      if (phone) {
+        const phoneClean = phone.replace(/[\s\-()]/g, '');
+        const phoneRegex = /^\+?[0-9]{7,15}$/;
+        if (!phoneRegex.test(phoneClean)) {
+          showToast("⚠️ Please enter a valid phone number (7-15 digits, + optional).", true);
+          if (phoneInput) phoneInput.focus();
+          return;
+        }
+      }
+
       if (isPaidTrialMode) {
-        if (!email || !email.includes('@')) {
+        if (!email) {
           showToast("⚠️ Please enter a valid Email Address for Trial Mode.", true);
           if (emailInput) emailInput.focus();
           return;
         }
-        if (!phone || phone.length < 7) {
+        if (!phone) {
           showToast("⚠️ Please enter a valid Cellphone Number for Trial Mode.", true);
           if (phoneInput) phoneInput.focus();
           return;
